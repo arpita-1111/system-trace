@@ -20,6 +20,7 @@ Website: **https://system-trace.pages.dev**
 ## Table of Contents
 
 - [About Project](#about-project)
+- [Screenshots](#screenshots)
 - [Why System Trace](#why-system-trace)
 - [Features](#features)
 - [Installation](#installation)
