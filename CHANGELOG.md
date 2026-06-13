@@ -9,6 +9,98 @@ and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.ht
 
 Nothing yet. New work in progress lives here until the next tagged release.
 
+## [0.2.0] - 2026-06-13 - Onboarding, history, wellbeing engines, and always-on tracing
+
+The second public release of System Trace. v0.1.0 shipped the tracking
+core and the focus / wellbeing scaffolding; this release fills in the
+missing engines, adds the history explorer, and fixes the biggest
+real-world bug - that closing the window used to kill tracing.
+
+### Added
+
+**History explorer in Reports**
+- Day / Week / Month mode toggle with a prev / next stepper, a
+  reset-to-present chip, and left / right arrow key navigation.
+- Day mode renders the same drill-down as the Dashboard (hourly chart,
+  top apps, categories, longest session, app switches) for any past
+  day.
+- Week and Month modes show the daily-usage bars and aggregates for
+  the picked calendar period. Month mode adapts the bar labels to keep
+  all 28-31 dates visible.
+
+**Onboarding flow**
+- Four-step welcome (Welcome -> Privacy -> Made for grown-ups ->
+  Always on, quietly) that runs once on first launch and is gated on
+  the existing `settings.onboarding_complete` flag.
+- The last step asks the user to enable autostart-at-login with a
+  default-on checkbox.
+
+**Pomodoro countdown for focus sessions**
+- The Focus page now live-ticks the remaining session time as a
+  monospaced MM:SS readout, refreshed every second.
+
+**Productivity scoring engine**
+- New `get_focus_score` command computes a 0-100 Focus Score from
+  productive / distracting / neutral time, using the `category.productive`
+  flag.
+- Dashboard shows the score in a StatCard when
+  `settings.scoring_enabled` is on.
+
+**Category goals**
+- New `category_goal` table and CRUD commands. Goals can be `under`
+  (stay below) or `over` (reach at least), with per-day progress bars
+  in a new Wellbeing section.
+
+**Distraction nudges**
+- Collector tracks continuous-time-on-distracting-app and fires a
+  `distraction_nudge` event with a Tauri notification once per app per
+  occurrence.
+- New `DistractionToast` overlays calm dismissible toasts (Pause /
+  Dismiss) in the bottom-right corner.
+- Opt-in via `distraction_nudges_enabled` and
+  `distraction_threshold_mins` settings.
+
+**Schedules on block-list rules**
+- Additive `block_rule` migration adds `schedule_enabled`,
+  `schedule_start`, `schedule_end`.
+- The hosts-file blocker and the in-process app block now both filter
+  by the schedule. Same-day and overnight windows are both handled.
+- Focus page exposes per-rule schedule UI inline with each rule.
+
+**Bedtime grayscale (best effort)**
+- New `grayscale.rs` with per-OS implementations: Windows uses HKCU
+  `ColorFiltering` registry keys; macOS uses
+  `defaults write com.apple.universalaccess`; Linux falls back to a
+  GNOME theme swap via `gsettings`.
+- Collector applies it on transition into / out of quiet hours when
+  `bedtime_grayscale_enabled` is set.
+
+**Always-on background tracing**
+- The window's X button now hides the window instead of exiting the
+  process, so the collector keeps tracking.
+- Startup honors the autostart plugin's `--minimized` flag (and the
+  `start_minimized` setting) so the boot-time launch is invisible.
+- Onboarding wires the user into the loop with a recommended
+  default-on autostart checkbox.
+
+### Fixed
+- The `bg-color/<alpha>` Tailwind opacity modifier broke against the
+  Signal palette's hex CSS variables, which made the Reports daily-bar
+  chart render with zero-height bars. Palette tokens now use RGB
+  triplet companions; the modifier resolves correctly across the app.
+- The macOS unexpected_cfgs lint inside the `objc` 0.2 crate's
+  `msg_send!` and `class!` macros was tripping `cargo clippy -D warnings`
+  in CI. Allowed at the crate root.
+- The Linux `LinuxWatcher` lacked a `Default` impl, which clippy
+  enforces.
+- `tauri-plugin-wdio` (the E2E test bridge introduced in PR #8) is now
+  gated behind the `SYSTEM_TRACE_TEST_MODE` env var, so production
+  installs do not load test-harness code.
+
+### Infrastructure
+- E2E test suite landed in PR #8 via WebdriverIO + tauri-driver, with a
+  dedicated `test-e2e` CI job running on Ubuntu under `xvfb-run`.
+
 ## [0.1.0] - 2026-06-11 - Initial open-source release
 
 The first public release of System Trace - a free, local-first, cross-platform
