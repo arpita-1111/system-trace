@@ -296,15 +296,19 @@ capture toggle, retention, exclusions, export/import, wipe), plus Onboarding
   
   **Linux Elevation Flow**:
   - Updating `/etc/hosts` requires root privileges.
-  - The app uses `pkexec` (part of Polkit) to spawn a GUI password prompt and execute
-    `cp` to overwrite the hosts file with a managed temporary file.
+  - The app stages the managed hosts content to a private, unpredictably-named
+    temp file (mode `0600`, created with `O_EXCL`, under `$XDG_RUNTIME_DIR` when
+    available) so a local user cannot pre-create, read, or swap it in before the
+    privileged copy runs. It then uses `pkexec` (part of Polkit) to spawn a GUI
+    password prompt and `cp` that file over `/etc/hosts`; the temp file is removed
+    afterwards.
   - If `pkexec` is missing (exit code 127) or cancelled (exit code 126), the app
     returns a clear error to the UI.
   - **SELinux (Fedora/RHEL)**: If writes fail despite a successful prompt, check
     `journalctl -t setroubleshoot`. The hosts path is standard, but policy
     enforcement may vary.
-  - **Sudo Fallback**: Users without `pkexec` can manually apply changes:
-    `cat /tmp/system-trace-hosts | sudo tee /etc/hosts`.
+  - **Manual fallback**: Users without `pkexec` can edit `/etc/hosts` directly with
+    `sudo` and add/remove the `# >>> System Trace block (managed) >>>` … `<<<` section.
 
   Designed as a separate service with a clear, auditable interface; off by default.
 - Wellbeing scheduler: timers for eye/posture breaks (a dedicated always-on-top

@@ -104,16 +104,42 @@ fn write_hosts(content: String) -> Result<(), String> {
 
     #[cfg(target_os = "linux")]
     {
+        use rand::RngCore;
+        use std::io::Write;
+        use std::os::unix::fs::OpenOptionsExt;
         use std::process::Command;
-        let temp_path = "/tmp/system-trace-hosts";
-        fs::write(temp_path, content)
-            .map_err(|e| format!("failed to write temporary file: {e}"))?;
+
+        // Stage the new hosts content to a private, unpredictably-named temp
+        // file (mode 0600, created with O_EXCL) so a local user cannot
+        // pre-create, read, or swap it in before the privileged copy runs.
+        // Prefer the user-private XDG_RUNTIME_DIR over the world-writable /tmp.
+        let dir = std::env::var_os("XDG_RUNTIME_DIR")
+            .map(PathBuf::from)
+            .filter(|p| !p.as_os_str().is_empty())
+            .unwrap_or_else(std::env::temp_dir);
+        let mut rand_bytes = [0u8; 16];
+        rand::rngs::OsRng.fill_bytes(&mut rand_bytes);
+        let temp_path = dir.join(format!(
+            "system-trace-hosts-{:032x}",
+            u128::from_le_bytes(rand_bytes)
+        ));
+
+        {
+            let mut file = fs::OpenOptions::new()
+                .write(true)
+                .create_new(true)
+                .mode(0o600)
+                .open(&temp_path)
+                .map_err(|e| format!("failed to create temporary file: {e}"))?;
+            file.write_all(content.as_bytes())
+                .map_err(|e| format!("failed to write temporary file: {e}"))?;
+        }
 
         let status = Command::new("pkexec")
-            .args(["cp", temp_path, path.to_str().unwrap()])
+            .args(["cp", temp_path.to_str().unwrap(), path.to_str().unwrap()])
             .status();
 
-        let _ = fs::remove_file(temp_path);
+        let _ = fs::remove_file(&temp_path);
 
         match status {
             Ok(s) if s.success() => Ok(()),
