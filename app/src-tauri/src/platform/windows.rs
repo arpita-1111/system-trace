@@ -31,7 +31,7 @@ impl WinWatcher {
             use windows::Win32::System::Com::{CoInitializeEx, COINIT_MULTITHREADED};
             let _ = CoInitializeEx(None, COINIT_MULTITHREADED);
         }
-        WinWatcher { last_tick: None}
+        WinWatcher { last_tick: None }
     }
 }
 
@@ -161,8 +161,6 @@ impl Watcher for WinWatcher {
         suspended
     }
 }
-
-
 
 /// Read the foreground window title. Returns `None` when empty.
 unsafe fn window_title(hwnd: HWND) -> Option<String> {
